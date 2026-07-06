@@ -1,0 +1,44 @@
+name: Build iOS IPA
+on:
+  workflow_dispatch: # Cho phép bạn bấm nút Build thủ công trên giao diện GitHub
+
+jobs:
+  build:
+    runs-on: macos-latest # GitHub sẽ cấp cho bạn một máy Mac ảo miễn phí
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-size: 18
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Simulator/Ad-hoc IPA
+        run: |
+          # Lệnh này yêu cầu Expo xuất bản cấu hình thuần sang thư mục ios
+          npx expo prebuild --platform ios
+          
+          # Sử dụng xcodebuild của máy Mac ảo để đóng gói thành file .ipa (bản simulator/test)
+          cd ios
+          xcodebuild -workspace *.xcworkspace -scheme * -configuration Debug -sdk iphoneos -allowProvisioningUpdates CODE_SIGNING_ALLOWED=NO ALL_ARCHS=YES ONLY_ACTIVE_ARCH=NO
+          
+          # Gom file app thành định dạng .ipa để tải về
+          mkdir -p Payload
+          mv build/Build/Products/Debug-iphoneos/*.app Payload/
+          zip -r ../app-debug.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app
+          path: app-debug.ipa
