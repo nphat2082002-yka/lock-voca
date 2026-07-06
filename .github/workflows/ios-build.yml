@@ -1,10 +1,10 @@
 name: Build iOS IPA
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Cho phép bạn bấm nút Build thủ công trên giao diện GitHub
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-latest # GitHub sẽ cấp cho bạn một máy Mac ảo miễn phí
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -12,7 +12,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-size: 18
 
       - name: Setup Expo
         uses: expo/expo-github-action@v8
@@ -23,36 +23,23 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Prebuild iOS project
-        run: npx expo prebuild --platform ios
-
-      - name: Build Simulator APP via xcodebuild
+            - name: Build Simulator/Ad-hoc IPA
         run: |
+          # Lệnh này yêu cầu Expo xuất bản cấu hình thuần sang thư mục ios
+          npx expo prebuild --platform ios
+          
+          # Find the actual workspace and scheme
           cd ios
-          # Tìm chính xác tên Workspace của dự án để tránh lỗi đọc sai tên scheme
-          WORKSPACE_NAME=$(ls -d *.xcworkspace | head -n 1)
-          SCHEME_NAME=$(basename "$WORKSPACE_NAME" .xcworkspace)
+          WORKSPACE=$(ls -d *.xcworkspace | head -1)
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" | grep "Schemes:" -A 10 | tail -1 | xargs)
           
-          echo "Building Workspace: $WORKSPACE_NAME with Scheme: $SCHEME_NAME"
+          # Build with the correct scheme
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Debug -sdk iphoneos -allowProvisioningUpdates CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO
           
-          # Đổi sang build dạngiphonesimulator để lách qua bước check chứng chỉ của Apple
-          xcodebuild -workspace "$WORKSPACE_NAME" \
-                     -scheme "$SCHEME_NAME" \
-                     -configuration Debug \
-                     -sdk iphonesimulator \
-                     CODE_SIGNING_ALLOWED=NO \
-                     CODE_SIGNING_REQUIRED=NO \
-                     BUILD_DIR=../build
-
-      - name: Package APP into IPA
-        run: |
-          # Tạo cấu trúc thư mục Payload tiêu chuẩn cho file .ipa
+          # Gom file app thành định dạng .ipa để tải về
           mkdir -p Payload
-          # Tìm file .app vừa build xong và sao chép vào Payload
-          APP_PATH=$(find build -name "*.app" | head -n 1)
-          cp -r "$APP_PATH" Payload/
-          # Nén thành file .ipa
-          zip -r app-debug.ipa Payload
+          mv build/Build/Products/Debug-iphoneos/*.app Payload/
+          zip -r ../app-debug.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
