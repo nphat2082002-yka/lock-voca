@@ -33,14 +33,16 @@ jobs:
                      -scheme lockvocab \
                      -configuration Debug \
                      -sdk iphonesimulator \
+                     -derivedDataPath ../build \
                      CODE_SIGNING_ALLOWED=NO \
-                     CODE_SIGNING_REQUIRED=NO \
-                     BUILD_DIR=../build
+                     CODE_SIGNING_REQUIRED=NO
 
       - name: Package APP into IPA
         run: |
           mkdir -p Payload
-          APP_PATH=$(find build -name "lockvocab.app" | head -n 1)
+          # Tìm file .app bên trong thư mục Build/Products của derivedDataPath
+          APP_PATH=$(find build/Build/Products -name "lockvocab.app" -type d | head -n 1)
+          echo "Found App at: $APP_PATH"
           cp -r "$APP_PATH" Payload/
           zip -r app-debug.ipa Payload
 
