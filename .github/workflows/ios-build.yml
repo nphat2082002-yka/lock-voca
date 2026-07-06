@@ -1,10 +1,10 @@
 name: Build iOS IPA
 on:
-  workflow_dispatch: # Cho phép bạn bấm nút Build thủ công trên giao diện GitHub
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-latest # GitHub sẽ cấp cho bạn một máy Mac ảo miễn phí
+    runs-on: macos-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -12,7 +12,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-size: 18
+          node-version: 18
 
       - name: Setup Expo
         uses: expo/expo-github-action@v8
@@ -23,23 +23,26 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-            - name: Build Simulator/Ad-hoc IPA
+      - name: Prebuild iOS Project
+        run: npx expo prebuild --platform ios
+
+      - name: Build iOS App via xcodebuild
         run: |
-          # Lệnh này yêu cầu Expo xuất bản cấu hình thuần sang thư mục ios
-          npx expo prebuild --platform ios
-          
-          # Find the actual workspace and scheme
           cd ios
-          WORKSPACE=$(ls -d *.xcworkspace | head -1)
-          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" | grep "Schemes:" -A 10 | tail -1 | xargs)
-          
-          # Build with the correct scheme
-          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Debug -sdk iphoneos -allowProvisioningUpdates CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO
-          
-          # Gom file app thành định dạng .ipa để tải về
+          xcodebuild -workspace lockvocab.xcworkspace \
+                     -scheme lockvocab \
+                     -configuration Debug \
+                     -sdk iphonesimulator \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO \
+                     BUILD_DIR=../build
+
+      - name: Package APP into IPA
+        run: |
           mkdir -p Payload
-          mv build/Build/Products/Debug-iphoneos/*.app Payload/
-          zip -r ../app-debug.ipa Payload
+          APP_PATH=$(find build -name "lockvocab.app" | head -n 1)
+          cp -r "$APP_PATH" Payload/
+          zip -r app-debug.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
