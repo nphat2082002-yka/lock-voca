@@ -29,8 +29,18 @@ jobs:
       - name: Build iOS App via xcodebuild
         run: |
           cd ios
-          xcodebuild -workspace lockvocab.xcworkspace \
-                     -scheme lockvocab \
+          
+          # Tìm chính xác tên file .xcworkspace
+          WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
+          echo "Found Workspace: $WORKSPACE"
+          
+          # Tự động quét và lấy tên Scheme đầu tiên trong danh sách của Xcode
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | awk '/Schemes:/{flag=1; next} /^$/{flag=0} flag' | sed 's/^[ \t]*//' | head -n 1)
+          echo "Dynamically detected Scheme: '$SCHEME'"
+          
+          # Chạy lệnh build với Scheme vừa tìm được
+          xcodebuild -workspace "$WORKSPACE" \
+                     -scheme "$SCHEME" \
                      -configuration Debug \
                      -sdk iphonesimulator \
                      -derivedDataPath ../build \
@@ -40,8 +50,8 @@ jobs:
       - name: Package APP into IPA
         run: |
           mkdir -p Payload
-          # Tìm file .app bên trong thư mục Build/Products của derivedDataPath
-          APP_PATH=$(find build/Build/Products -name "lockvocab.app" -type d | head -n 1)
+          # Tìm bất kỳ file .app nào xuất hiện trong thư mục build để đóng gói
+          APP_PATH=$(find build/Build/Products -name "*.app" -type d | head -n 1)
           echo "Found App at: $APP_PATH"
           cp -r "$APP_PATH" Payload/
           zip -r app-debug.ipa Payload
