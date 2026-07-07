@@ -17,6 +17,9 @@ jobs:
         run: npm ci
       - name: Build web
         run: npm run build:web
+      - name: Copy web assets into dist
+        run: |
+          cp -R web-assets/* dist/
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
