@@ -1,4 +1,4 @@
-name: Build iOS IPA
+name: Build iOS IPA (Signed)
 on:
   workflow_dispatch:
 
@@ -26,38 +26,81 @@ jobs:
       - name: Prebuild iOS Project
         run: npx expo prebuild --platform ios
 
-      - name: Build iOS App via xcodebuild
+      - name: Install Apple Certificate & Provisioning Profile
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Tạo file tạm cho certificate và provisioning profile
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          PP_PATH=$RUNNER_TEMP/profile.mobileprovision
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          echo -n "$IOS_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          echo -n "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+
+          # Tạo keychain tạm và import certificate
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import $CERTIFICATE_PATH -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH login.keychain
+
+          # Cài provisioning profile vào đúng thư mục Xcode cần
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Install CocoaPods
         run: |
           cd ios
-          
-          # Tìm chính xác tên file .xcworkspace
+          pod install
+
+      - name: Archive iOS App
+        run: |
+          cd ios
+
           WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
           echo "Found Workspace: $WORKSPACE"
-          
-          # Tự động quét và lấy tên Scheme đầu tiên trong danh sách của Xcode
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | awk '/Schemes:/{flag=1; next} /^$/{flag=0} flag' | sed 's/^[ \t]*//' | head -n 1)
-          echo "Dynamically detected Scheme: '$SCHEME'"
-          
-          # Chạy lệnh build với Scheme vừa tìm được
+
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['workspace']['schemes'][0])")
+          echo "Detected Scheme: '$SCHEME'"
+
           xcodebuild -workspace "$WORKSPACE" \
                      -scheme "$SCHEME" \
-                     -configuration Debug \
-                     -sdk iphonesimulator \
-                     -derivedDataPath ../build \
-                     CODE_SIGNING_ALLOWED=NO \
-                     CODE_SIGNING_REQUIRED=NO
+                     -configuration Release \
+                     -sdk iphoneos \
+                     -archivePath ../build/App.xcarchive \
+                     -allowProvisioningUpdates \
+                     archive
 
-      - name: Package APP into IPA
+      - name: Export IPA
         run: |
-          mkdir -p Payload
-          # Tìm bất kỳ file .app nào xuất hiện trong thư mục build để đóng gói
-          APP_PATH=$(find build/Build/Products -name "*.app" -type d | head -n 1)
-          echo "Found App at: $APP_PATH"
-          cp -r "$APP_PATH" Payload/
-          zip -r app-debug.ipa Payload
+          cat > exportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>ad-hoc</string>
+              <key>compileBitcode</key>
+              <false/>
+              <key>signingStyle</key>
+              <string>manual</string>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+                     -archivePath build/App.xcarchive \
+                     -exportPath build/ipa \
+                     -exportOptionsPlist exportOptions.plist \
+                     -allowProvisioningUpdates
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-app
-          path: app-debug.ipa
+          path: build/ipa/*.ipa
