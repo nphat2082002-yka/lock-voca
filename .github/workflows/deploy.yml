@@ -36,7 +36,7 @@ jobs:
         run: npm run build:web
 
       - name: Verify build output
-        run: ls -la dist && find dist -maxdepth 3 -type f | sort | head -50
+        run: ls -la web-build && find web-build -maxdepth 3 -type f | sort | head -50
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
