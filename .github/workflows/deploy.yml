@@ -35,13 +35,16 @@ jobs:
       - name: Build web app
         run: npm run build:web
 
+      - name: Verify build output
+        run: ls -la dist && find dist -maxdepth 3 -type f | sort | head -50
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: web-build
 
   deploy:
     needs: build

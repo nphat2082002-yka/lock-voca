@@ -22,8 +22,9 @@
     "start": "expo start --web --offline",
     "web": "expo start --web --offline",
     "web:clear": "expo start --web --offline --clear",
-    "build:web": "expo export --platform web --output-dir dist --clear",
+    "build:web": "expo export --platform web --output-dir web-build --clear",
     "serve:local": "node scripts/serve-local.js"
   },
+  "homepage": "https://nphat2082002-yka.github.io/lock-voca",
   "private": true
 }
