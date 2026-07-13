@@ -33,6 +33,8 @@ jobs:
         run: |
           ls -la web-build
           find web-build -maxdepth 2 -type f | sort | head -50
+          echo "--- index.html preview ---"
+          sed -n '1,80p' web-build/index.html
 
       - name: Publish to gh-pages
         uses: JamesIves/github-pages-deploy-action@v4
