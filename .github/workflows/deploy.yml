@@ -29,19 +29,14 @@ jobs:
       - name: Build web app
         run: npm run build:web
 
-      - name: Verify output
+      - name: Show generated files
         run: |
-          mkdir -p public-site
-          cp -R web-build/. public-site/
-          ls -la public-site
+          ls -la web-build
+          find web-build -maxdepth 2 -type f | sort | head -50
 
       - name: Publish to gh-pages
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan gh-pages
-          git rm -rf . || true
-          cp -R public-site/. .
-          git add .
-          git commit -m "Deploy web build"
-          git push -f origin gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: web-build
+          branch: gh-pages
+          clean: true
