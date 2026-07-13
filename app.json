@@ -6,7 +6,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "publicPath": "/lock-vocab/"
     }
   }
 }
