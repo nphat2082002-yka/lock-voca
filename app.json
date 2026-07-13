@@ -7,7 +7,7 @@
     "userInterfaceStyle": "light",
     "web": {
       "favicon": "./assets/favicon.png",
-      "publicPath": "/lock-vocab/"
+      "publicPath": "/lock-voca/"
     }
   }
 }
