@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, SafeAreaView, Pressable, ActivityIndicator, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ActivityIndicator, StatusBar, Platform } from 'react-native';
 import { initializeLocalData } from './src/shared/utils/dbInit';
 import { HomeDashboard } from './src/features/dashboard/components/HomeDashboard';
 import { ActiveFlashcardScreen } from './src/features/flashcard/components/ActiveFlashcardScreen';
@@ -83,9 +83,9 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
@@ -116,13 +116,14 @@ export default function App() {
           </Pressable>
         ))}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    height: '100%',
     backgroundColor: COLORS.background,
   },
   loadingContainer: {
@@ -150,14 +151,19 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    overflowY: 'auto',
+    overflowX: 'hidden',
   },
   tabBar: {
     flexDirection: 'row',
     height: 64,
+    minHeight: 64,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     backgroundColor: COLORS.card,
     paddingBottom: 8,
+    zIndex: 9999,
+    elevation: 9999,
   },
   tabButton: {
     flex: 1,

@@ -10,6 +10,8 @@ import {
 import { readExcelFromUri } from '@/shared/utils/excelImport';
 import { COLORS, SPACING } from '@/shared/constants/theme';
 
+const BOTTOM_BAR_HEIGHT = 110;
+
 interface ActiveFlashcardScreenProps {
   onUpdate: () => void;
 }
@@ -87,57 +89,45 @@ export const ActiveFlashcardScreen: React.FC<ActiveFlashcardScreenProps> = ({ on
   if (!currentCard) {
     return (
       <View style={styles.container}>
-        <Text style={styles.completedText}>🎉 Tuyệt vời!</Text>
-        <Text style={styles.completedSub}>Bạn đã nhớ hết tất cả cặp Key-Value.</Text>
-        <View style={styles.completedActions}>
-          <Pressable
-            style={[styles.btnReset, resetting && styles.btnDisabled]}
-            onPress={handleReloadStack}
-            disabled={resetting || importing}
-          >
-            {resetting ? (
-              <ActivityIndicator color={COLORS.text} />
-            ) : (
-              <Text style={styles.btnResetText}>Học lại bộ thẻ</Text>
-            )}
-          </Pressable>
-          <Pressable
-            style={[styles.btnImport, importing && styles.btnDisabled]}
-            onPress={importFromExcel}
-            disabled={resetting || importing}
-          >
-            {importing ? (
-              <ActivityIndicator color={COLORS.text} />
-            ) : (
-              <Text style={styles.btnImportText}>Nhập từ Excel</Text>
-            )}
-          </Pressable>
+        <View style={styles.contentArea}>
+          <Text style={styles.completedText}>🎉 Tuyệt vời!</Text>
+          <Text style={styles.completedSub}>Bạn đã nhớ hết tất cả cặp Key-Value.</Text>
         </View>
+        {/* No bottom bar needed for completed state */}
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <FlashcardView card={currentCard} isFlipped={isFlipped} onFlip={flipCard} />
+      <View style={styles.contentArea}>
+        <FlashcardView card={currentCard} isFlipped={isFlipped} onFlip={flipCard} />
+        {!isFlipped && (
+          <Text style={styles.hintText}>Chạm thẻ để lật</Text>
+        )}
+      </View>
 
-      {isFlipped && (
+      {/* Fixed bottom action bar */}
+      <View style={styles.bottomBar}>
         <View style={styles.actions}>
-          <Pressable
-            style={[styles.btn, styles.btnNo]}
-            onPress={handleMarkNotMemorized}
-          >
-            <Text style={styles.btnText}>Cần học thêm ❌</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.btn, styles.btnYes]}
-            onPress={handleMarkMemorized}
-          >
-            <Text style={styles.btnText}>Đã nhớ ✓</Text>
-          </Pressable>
+          {isFlipped && (
+            <>
+              <Pressable
+                style={[styles.btn, styles.btnNo]}
+                onPress={handleMarkNotMemorized}
+              >
+                <Text style={styles.btnText}>Cần học thêm ❌</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btn, styles.btnYes]}
+                onPress={handleMarkMemorized}
+              >
+                <Text style={styles.btnText}>Đã nhớ ✓</Text>
+              </Pressable>
+            </>
+          )}
         </View>
-      )}
+      </View>
     </View>
   );
 };
@@ -145,15 +135,36 @@ export const ActiveFlashcardScreen: React.FC<ActiveFlashcardScreenProps> = ({ on
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  contentArea: {
+    flex: 1,
     justifyContent: 'center',
-    padding: SPACING.md,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingBottom: BOTTOM_BAR_HEIGHT,
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: '100%',
+    zIndex: 1000,
+    backgroundColor: COLORS.background,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: 'env(safe-area-inset-bottom, 16px)' as any,
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    marginTop: SPACING.md,
+    minHeight: 60,
   },
   btn: {
     flex: 1,
@@ -161,6 +172,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 48,
   },
   btnNo: {
     backgroundColor: COLORS.card,
@@ -175,6 +187,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  hintText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    textAlign: 'center',
+  },
   completedText: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -188,32 +205,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.xl,
   },
-  completedActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: SPACING.md,
-  },
   btnReset: {
     backgroundColor: COLORS.primary,
-    minWidth: 132,
-    paddingVertical: SPACING.md,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  btnResetText: {
-    color: COLORS.text,
-    fontWeight: 'bold',
   },
   btnImport: {
     backgroundColor: COLORS.success,
-    minWidth: 132,
-    paddingVertical: SPACING.md,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  btnImportText: {
-    color: COLORS.text,
-    fontWeight: 'bold',
   },
   btnDisabled: {
     opacity: 0.7,
