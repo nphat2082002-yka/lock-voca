@@ -2,7 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const root = path.resolve(__dirname, '..', 'dist');
+const webBuildPath = path.resolve(__dirname, '..', 'web-build');
+const distPath = path.resolve(__dirname, '..', 'dist');
+const root = fs.existsSync(webBuildPath) ? webBuildPath : distPath;
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || '127.0.0.1';
 

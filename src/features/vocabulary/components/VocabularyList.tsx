@@ -1,8 +1,24 @@
 import React from 'react';
-import { Alert, StyleSheet, Text, View, TextInput, FlatList, Pressable } from 'react-native';
+import {
+  Alert,
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  FlatList,
+  Pressable,
+  Platform,
+} from 'react-native';
 import { getVocabularyListUseCase, rawVocabularyRepository } from '@/shared/di/container';
 import { KeyValueItem } from '@/domain/entities/Vocabulary';
-import { COLORS, SPACING } from '@/shared/constants/theme';
+import {
+  COLORS,
+  SPACING,
+  RADII,
+  TOUCH_TARGET,
+  TYPOGRAPHY,
+} from '@/shared/constants/theme';
+import { Icon } from '@/shared/components/Icon';
 
 interface VocabularyListProps {
   refreshTrigger: number;
@@ -77,61 +93,143 @@ export const VocabularyList: React.FC<VocabularyListProps> = ({ refreshTrigger, 
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.searchBar}
-        placeholder="Tìm theo Key hoặc Value..."
-        placeholderTextColor={COLORS.textSecondary}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
-
-      <Pressable
-        style={[styles.deleteAllButton, list.length === 0 && styles.disabledButton]}
-        onPress={deleteAllItems}
-        disabled={list.length === 0}
-      >
-        <Text style={styles.deleteAllButtonText}>Xóa tất cả Key-Value</Text>
-      </Pressable>
-
-      <View style={styles.tabContainer}>
-        {(['all', 'memorized', 'unmemorized'] as const).map((tab) => (
+      {/* Search Bar with minimum 16px font size to prevent iOS Safari auto-zoom */}
+      <View style={styles.searchWrapper}>
+        <Icon name="search" size={18} color={COLORS.textSecondary} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Tìm kiếm theo Key hoặc Value..."
+          placeholderTextColor={COLORS.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
+        {searchQuery.length > 0 && (
           <Pressable
-            key={tab}
-            style={[styles.tab, filter === tab && styles.activeTab]}
-            onPress={() => setFilter(tab)}
+            accessibilityRole="button"
+            accessibilityLabel="Xóa nội dung tìm kiếm"
+            style={styles.clearSearchBtn}
+            onPress={() => setSearchQuery('')}
           >
-            <Text style={[styles.tabText, filter === tab && styles.activeTabText]}>
-              {tab === 'all' ? 'TẤT CẢ' : tab === 'memorized' ? 'ĐÃ NHỚ' : 'ĐANG HỌC'}
-            </Text>
+            <Icon name="x" size={16} color={COLORS.textSecondary} />
           </Pressable>
-        ))}
+        )}
       </View>
 
+      {/* Filter Tabs with >= 44px Touch Target */}
+      <View style={styles.tabContainer}>
+        {(['all', 'memorized', 'unmemorized'] as const).map((tab) => {
+          const isActive = filter === tab;
+          const label =
+            tab === 'all'
+              ? `Tất cả (${list.length})`
+              : tab === 'memorized'
+              ? `Đã nhớ (${list.filter((i) => i.memorized).length})`
+              : `Đang học (${list.filter((i) => !i.memorized).length})`;
+
+          return (
+            <Pressable
+              key={tab}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+              style={({ pressed }) => [
+                styles.tab,
+                isActive && styles.activeTab,
+                pressed && styles.tabPressed,
+              ]}
+              onPress={() => setFilter(tab)}
+            >
+              <Text style={[styles.tabText, isActive && styles.activeTabText]}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Delete All Action Button */}
+      {list.length > 0 && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Xóa toàn bộ từ vựng"
+          style={({ pressed }) => [
+            styles.deleteAllButton,
+            pressed && styles.deleteAllButtonPressed,
+          ]}
+          onPress={deleteAllItems}
+        >
+          <Icon name="trash" size={15} color={COLORS.errorLight} />
+          <Text style={styles.deleteAllButtonText}>Xóa tất cả Key-Value</Text>
+        </Pressable>
+      )}
+
+      {/* Vocabulary List */}
       <FlatList
         data={filteredList}
         keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <View style={styles.itemCard}>
-            <Text style={styles.keyLabel}>Key</Text>
-            <Text style={styles.keyText}>{item.key}</Text>
-            <Text style={styles.valueLabel}>Value</Text>
-            <Text style={styles.valueText}>{item.value.trim() || '(trống)'}</Text>
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.keyContainer}>
+                <Text style={styles.keyLabel}>KEY</Text>
+                <Text style={styles.keyText} numberOfLines={3}>
+                  {item.key}
+                </Text>
+              </View>
+              <View style={styles.reviewBadge}>
+                <Text style={styles.reviewBadgeText}>Ôn: {item.reviewCount}</Text>
+              </View>
+            </View>
+
+            <View style={styles.valueContainer}>
+              <Text style={styles.valueLabel}>VALUE</Text>
+              <Text style={styles.valueText} numberOfLines={4}>
+                {item.value.trim() || '(trống)'}
+              </Text>
+            </View>
 
             <View style={styles.cardFooter}>
-              <Text style={styles.reviewCount}>Lượt ôn: {item.reviewCount}</Text>
               <View style={styles.cardActions}>
                 <Pressable
-                  style={[
+                  accessibilityRole="button"
+                  accessibilityLabel={`Trạng thái: ${
+                    item.memorized ? 'Đã nhớ' : 'Đang học'
+                  }. Chạm để thay đổi.`}
+                  style={({ pressed }) => [
                     styles.statusBadge,
                     item.memorized ? styles.badgeMemorized : styles.badgeUnmemorized,
+                    pressed && styles.badgePressed,
                   ]}
                   onPress={() => toggleStatus(item)}
                 >
-                  <Text style={styles.badgeText}>
-                    {item.memorized ? 'Đã nhớ ✓' : 'Đang học'}
+                  <Icon
+                    name={item.memorized ? 'check' : 'cards'}
+                    size={14}
+                    color={item.memorized ? COLORS.successLight : COLORS.primaryLight}
+                  />
+                  <Text
+                    style={[
+                      styles.badgeText,
+                      item.memorized ? styles.badgeTextMemorized : styles.badgeTextUnmemorized,
+                    ]}
+                  >
+                    {item.memorized ? 'Đã nhớ' : 'Đang học'}
                   </Text>
                 </Pressable>
-                <Pressable style={styles.deleteButton} onPress={() => deleteItem(item)}>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Xóa ${item.key}`}
+                  style={({ pressed }) => [
+                    styles.deleteButton,
+                    pressed && styles.deleteButtonPressed,
+                  ]}
+                  onPress={() => deleteItem(item)}
+                >
+                  <Icon name="trash" size={14} color={COLORS.errorLight} />
                   <Text style={styles.deleteButtonText}>Xóa</Text>
                 </Pressable>
               </View>
@@ -140,7 +238,13 @@ export const VocabularyList: React.FC<VocabularyListProps> = ({ refreshTrigger, 
         )}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>Không có dữ liệu Key-Value.</Text>
+            <Icon name="book" size={40} color={COLORS.textSecondary} style={{ marginBottom: SPACING.sm }} />
+            <Text style={styles.emptyTitle}>Chưa có từ vựng phù hợp</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery.length > 0
+                ? 'Không tìm thấy kết quả nào khớp với tìm kiếm.'
+                : 'Thêm từ mới hoặc nhập file Excel ở mục Cài đặt.'}
+            </Text>
           </View>
         }
         contentContainerStyle={styles.listContent}
@@ -152,150 +256,235 @@ export const VocabularyList: React.FC<VocabularyListProps> = ({ refreshTrigger, 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+  },
+  searchWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: SPACING.md,
+    zIndex: 1,
   },
   searchBar: {
     backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.md,
+    borderRadius: RADII.lg,
+    paddingLeft: 42,
+    paddingRight: 42,
+    paddingVertical: SPACING.md,
     color: COLORS.text,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: SPACING.md,
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.input, // Critical: 16px to prevent iOS Safari auto-zoom
+    minHeight: TOUCH_TARGET.comfortable,
   },
-  deleteAllButton: {
-    borderWidth: 1,
-    borderColor: COLORS.error,
-    borderRadius: 10,
-    paddingVertical: SPACING.sm,
+  clearSearchBtn: {
+    position: 'absolute',
+    right: SPACING.md,
+    padding: SPACING.xs,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  deleteAllButtonText: {
-    color: COLORS.error,
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  disabledButton: {
-    opacity: 0.45,
+    minWidth: 28,
+    minHeight: 28,
   },
   tabContainer: {
     flexDirection: 'row',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
     gap: SPACING.xs,
   },
   tab: {
     flex: 1,
-    paddingVertical: SPACING.sm,
-    borderRadius: 8,
+    minHeight: TOUCH_TARGET.min, // 44px Apple HIG standard
+    borderRadius: RADII.md,
     backgroundColor: COLORS.card,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: SPACING.xs,
+  },
+  tabPressed: {
+    opacity: 0.8,
   },
   activeTab: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
     borderColor: COLORS.primary,
   },
   tabText: {
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: TYPOGRAPHY.xs,
+    fontWeight: '700',
     color: COLORS.textSecondary,
+    textAlign: 'center',
   },
   activeTabText: {
-    color: COLORS.text,
+    color: COLORS.primaryLight,
+  },
+  deleteAllButton: {
+    minHeight: TOUCH_TARGET.min, // 44px
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.4)',
+    backgroundColor: 'rgba(244, 63, 94, 0.08)',
+    borderRadius: RADII.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  deleteAllButtonPressed: {
+    backgroundColor: 'rgba(244, 63, 94, 0.18)',
+  },
+  deleteAllButtonText: {
+    color: COLORS.errorLight,
+    fontSize: TYPOGRAPHY.sm,
+    fontWeight: '700',
   },
   itemCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
+    borderRadius: RADII.xl,
     padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
     marginBottom: SPACING.sm,
   },
-  keyLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: COLORS.accent,
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  keyText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
-  },
-  valueLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: COLORS.primaryLight,
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  valueText: {
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
-  },
-  cardFooter: {
+  cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.xs,
+  },
+  keyContainer: {
+    flex: 1,
+    paddingRight: SPACING.sm,
+  },
+  keyLabel: {
+    fontSize: TYPOGRAPHY.xs,
+    fontWeight: '800',
+    color: COLORS.accent,
+    letterSpacing: 1.5,
+    marginBottom: 2,
+  },
+  keyText: {
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  reviewBadge: {
+    backgroundColor: 'rgba(51, 65, 85, 0.6)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADII.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  reviewBadgeText: {
+    fontSize: TYPOGRAPHY.xs,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  valueContainer: {
+    marginVertical: SPACING.xs,
+  },
+  valueLabel: {
+    fontSize: TYPOGRAPHY.xs,
+    fontWeight: '800',
+    color: COLORS.primaryLight,
+    letterSpacing: 1.5,
+    marginBottom: 2,
+  },
+  valueText: {
+    fontSize: TYPOGRAPHY.base,
+    color: COLORS.textSecondary,
+    lineHeight: 22,
+  },
+  cardFooter: {
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     paddingTop: SPACING.sm,
-  },
-  reviewCount: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
   },
   cardActions: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: SPACING.sm,
   },
   statusBadge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: 8,
+    minHeight: TOUCH_TARGET.min, // 44px touch target Apple HIG
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADII.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   badgeMemorized: {
-    backgroundColor: COLORS.success + '22',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
     borderWidth: 1,
     borderColor: COLORS.success,
   },
   badgeUnmemorized: {
-    backgroundColor: COLORS.primary + '22',
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
     borderWidth: 1,
     borderColor: COLORS.primary,
   },
+  badgePressed: {
+    opacity: 0.75,
+  },
   badgeText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    fontSize: TYPOGRAPHY.sm,
+    fontWeight: '700',
+  },
+  badgeTextMemorized: {
+    color: COLORS.successLight,
+  },
+  badgeTextUnmemorized: {
+    color: COLORS.primaryLight,
   },
   deleteButton: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: 8,
+    minHeight: TOUCH_TARGET.min, // 44px touch target Apple HIG
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADII.md,
     borderWidth: 1,
-    borderColor: COLORS.error,
+    borderColor: 'rgba(244, 63, 94, 0.4)',
+    backgroundColor: 'rgba(244, 63, 94, 0.08)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  deleteButtonPressed: {
+    backgroundColor: 'rgba(244, 63, 94, 0.2)',
   },
   deleteButtonText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: COLORS.error,
+    fontSize: TYPOGRAPHY.sm,
+    fontWeight: '700',
+    color: COLORS.errorLight,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: SPACING.xl,
+    paddingVertical: SPACING['2xl'],
+    paddingHorizontal: SPACING.lg,
+  },
+  emptyTitle: {
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
   },
   emptyText: {
     color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.sm,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   listContent: {
-    paddingBottom: SPACING.xl,
+    paddingBottom: (Platform.OS === 'web'
+      ? 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
+      : 80) as any,
   },
 });

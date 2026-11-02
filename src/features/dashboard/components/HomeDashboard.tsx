@@ -1,15 +1,32 @@
 import React from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Pressable,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import { getStatisticsUseCase } from '@/shared/di/container';
 import { KeyValueStatistics } from '@/domain/entities/Vocabulary';
-import { COLORS, SPACING } from '@/shared/constants/theme';
+import {
+  COLORS,
+  SPACING,
+  RADII,
+  TOUCH_TARGET,
+  TYPOGRAPHY,
+} from '@/shared/constants/theme';
+import { Icon } from '@/shared/components/Icon';
 
 interface HomeDashboardProps {
   onStartLearning: () => void;
   refreshTrigger: number;
 }
 
-export const HomeDashboard: React.FC<HomeDashboardProps> = ({ onStartLearning, refreshTrigger }) => {
+export const HomeDashboard: React.FC<HomeDashboardProps> = ({
+  onStartLearning,
+  refreshTrigger,
+}) => {
   const [stats, setStats] = React.useState<KeyValueStatistics | null>(null);
 
   React.useEffect(() => {
@@ -22,51 +39,77 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ onStartLearning, r
 
   if (!stats) return null;
 
+  const percentCompleted =
+    stats.totalItems > 0
+      ? Math.round((stats.memorizedItems / stats.totalItems) * 100)
+      : 0;
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Xin chào! 👋</Text>
-      <Text style={styles.subtitle}>Ôn tập các cặp Key-Value hôm nay.</Text>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.welcomeSection}>
+        <Text style={styles.title}>Xin chào!</Text>
+        <Text style={styles.subtitle}>Cùng ôn tập và củng cố kiến thức hôm nay.</Text>
+      </View>
 
+      {/* Streak Banner */}
       <View style={styles.streakCard}>
-        <Text style={styles.streakCount}>🔥 {stats.streakDays} ngày liên tiếp</Text>
-        <Text style={styles.streakText}>Học mỗi ngày để duy trì chuỗi học!</Text>
-      </View>
-
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.totalItems}</Text>
-          <Text style={styles.statLabel}>Tổng cặp</Text>
+        <View style={styles.streakIconCircle}>
+          <Icon name="flame" size={24} color="#f59e0b" />
         </View>
-
-        <View style={[styles.statCard, { borderColor: COLORS.success }]}>
-          <Text style={[styles.statNumber, { color: COLORS.successLight }]}>
-            {stats.memorizedItems}
-          </Text>
-          <Text style={styles.statLabel}>Đã nhớ</Text>
+        <View style={styles.streakInfo}>
+          <Text style={styles.streakCount}>{stats.streakDays} ngày liên tiếp</Text>
+          <Text style={styles.streakText}>Học mỗi ngày để giữ vững phong độ!</Text>
         </View>
       </View>
 
-      <View style={styles.statsRow}>
-        <View style={[styles.statCard, { borderColor: COLORS.primaryLight }]}>
-          <Text style={[styles.statNumber, { color: COLORS.primaryLight }]}>
-            {stats.unmemorizedItems}
-          </Text>
-          <Text style={styles.statLabel}>Đang học</Text>
+      {/* Statistics Grid */}
+      <View style={styles.statsSection}>
+        <Text style={styles.sectionTitle}>TIẾN ĐỘ HỌC TẬP</Text>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.totalItems}</Text>
+            <Text style={styles.statLabel}>Tổng cặp từ</Text>
+          </View>
+
+          <View style={[styles.statCard, styles.statCardSuccess]}>
+            <Text style={[styles.statNumber, { color: COLORS.successLight }]}>
+              {stats.memorizedItems}
+            </Text>
+            <Text style={styles.statLabel}>Đã nhớ</Text>
+          </View>
         </View>
 
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>
-            {stats.totalItems > 0
-              ? Math.round((stats.memorizedItems / stats.totalItems) * 100)
-              : 0}
-            %
-          </Text>
-          <Text style={styles.statLabel}>Hoàn thành</Text>
+        <View style={styles.statsRow}>
+          <View style={[styles.statCard, styles.statCardPrimary]}>
+            <Text style={[styles.statNumber, { color: COLORS.primaryLight }]}>
+              {stats.unmemorizedItems}
+            </Text>
+            <Text style={styles.statLabel}>Đang học</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{percentCompleted}%</Text>
+            <Text style={styles.statLabel}>Hoàn thành</Text>
+          </View>
         </View>
       </View>
 
-      <Pressable style={styles.btnStart} onPress={onStartLearning}>
-        <Text style={styles.btnText}>Bắt đầu học 🃏</Text>
+      {/* Primary CTA Button */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Bắt đầu học flashcard"
+        style={({ pressed }) => [
+          styles.btnStart,
+          pressed && styles.btnStartPressed,
+        ]}
+        onPress={onStartLearning}
+      >
+        <Icon name="cards" size={20} color={COLORS.text} />
+        <Text style={styles.btnText}>Bắt đầu ôn tập</Text>
       </Pressable>
     </ScrollView>
   );
@@ -74,81 +117,126 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ onStartLearning, r
 
 const styles = StyleSheet.create({
   container: {
-    padding: SPACING.lg,
-    alignItems: 'stretch',
+    padding: SPACING.md,
+    paddingBottom: (Platform.OS === 'web'
+      ? 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
+      : 80) as any,
+  },
+  welcomeSection: {
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
   },
   title: {
-    fontSize: 28,
+    fontSize: TYPOGRAPHY['2xl'],
     fontWeight: '800',
     color: COLORS.text,
-    marginTop: SPACING.md,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.base,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.lg,
+    marginTop: 2,
   },
   streakCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderRadius: RADII.xl,
+    padding: SPACING.md,
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
     marginBottom: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  streakIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: RADII.full,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
+  streakInfo: {
+    flex: 1,
+  },
   streakCount: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: '800',
     color: COLORS.text,
-    marginBottom: SPACING.xs,
   },
   streakText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.xs,
     color: COLORS.textSecondary,
-    textAlign: 'center',
+    marginTop: 2,
+  },
+  statsSection: {
+    marginBottom: SPACING.lg,
+  },
+  sectionTitle: {
+    fontSize: TYPOGRAPHY.xs,
+    fontWeight: '800',
+    color: COLORS.accent,
+    letterSpacing: 1.5,
+    marginBottom: SPACING.sm,
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   statCard: {
     flex: 1,
+    minWidth: 120,
     backgroundColor: COLORS.card,
-    borderRadius: 16,
+    borderRadius: RADII.xl,
     padding: SPACING.md,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: 'center',
-    marginHorizontal: SPACING.xs,
+    justifyContent: 'center',
+  },
+  statCardSuccess: {
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+  },
+  statCardPrimary: {
+    borderColor: 'rgba(99, 102, 241, 0.4)',
+    backgroundColor: 'rgba(99, 102, 241, 0.05)',
   },
   statNumber: {
-    fontSize: 26,
+    fontSize: TYPOGRAPHY['2xl'],
     fontWeight: '800',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.xs,
     color: COLORS.textSecondary,
     fontWeight: '600',
   },
   btnStart: {
+    minHeight: TOUCH_TARGET.cta,
     backgroundColor: COLORS.primary,
-    borderRadius: 16,
-    padding: SPACING.md,
+    borderRadius: RADII.lg,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: SPACING.lg,
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.lg,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
     elevation: 4,
+    marginTop: SPACING.xs,
+  },
+  btnStartPressed: {
+    transform: [{ scale: 0.985 }],
+    opacity: 0.9,
   },
   btnText: {
     color: COLORS.text,
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: TYPOGRAPHY.base,
+    fontWeight: '700',
   },
 });

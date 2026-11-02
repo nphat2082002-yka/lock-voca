@@ -1,30 +1,66 @@
 import React from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Pressable,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import {
   importKeyValuesFromExcelUseCase,
   rawVocabularyRepository,
 } from '@/shared/di/container';
 import { readExcelFromUri } from '@/shared/utils/excelImport';
-import { COLORS, SPACING } from '@/shared/constants/theme';
+import {
+  COLORS,
+  SPACING,
+  RADII,
+  TOUCH_TARGET,
+  TYPOGRAPHY,
+} from '@/shared/constants/theme';
+import { Icon } from '@/shared/components/Icon';
 
 interface SettingsScreenProps {
   onTriggerLockScreen: () => void;
   onUpdate: () => void;
 }
 
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onTriggerLockScreen, onUpdate }) => {
+export const SettingsScreen: React.FC<SettingsScreenProps> = ({
+  onTriggerLockScreen,
+  onUpdate,
+}) => {
   const [importing, setImporting] = React.useState(false);
+  const [resetting, setResetting] = React.useState(false);
 
   const resetProgress = async () => {
-    try {
-      await rawVocabularyRepository.resetAllProgress();
-      onUpdate();
-      Alert.alert('Thành công', 'Đã đặt lại tiến độ học.');
-    } catch (e) {
-      console.error(e);
-      Alert.alert('Lỗi', 'Không thể đặt lại tiến độ học.');
-    }
+    Alert.alert(
+      'Đặt lại tiến độ',
+      'Bạn có chắc chắn muốn đặt lại toàn bộ từ vựng về trạng thái "Đang học" và số lượt ôn về 0?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Đặt lại',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setResetting(true);
+              await rawVocabularyRepository.resetAllProgress();
+              onUpdate();
+              Alert.alert('Thành công', 'Đã đặt lại tiến độ học.');
+            } catch (e) {
+              console.error(e);
+              Alert.alert('Lỗi', 'Không thể đặt lại tiến độ học.');
+            } finally {
+              setResetting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const importFromExcel = async () => {
@@ -63,102 +99,206 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onTriggerLockScr
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.sectionTitle}>NHẬP DỮ LIỆU</Text>
-      <Pressable
-        style={[styles.btnImport, importing && styles.btnDisabled]}
-        onPress={importFromExcel}
-        disabled={importing}
-      >
-        {importing ? (
-          <ActivityIndicator color={COLORS.text} />
-        ) : (
-          <Text style={styles.btnImportText}>📥 Nhập từ Excel (.xlsx)</Text>
-        )}
-      </Pressable>
-      <Text style={styles.helpText}>
-        File Excel cần có 2 cột: Key và Value (đúng tên cột như mẫu). Các dòng có Key
-        trống sẽ bỏ qua; Value có thể để trống.
-      </Text>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Section 1: Excel Import */}
+      <View style={styles.cardSection}>
+        <View style={styles.sectionHeader}>
+          <Icon name="upload" size={16} color={COLORS.accent} />
+          <Text style={styles.sectionTitle}>NHẬP DỮ LIỆU TỪ VỰNG</Text>
+        </View>
+        <Text style={styles.sectionDesc}>
+          Tải file Excel (.xlsx) chứa 2 cột Key và Value để nhập hàng loạt thẻ học mới.
+        </Text>
 
-      <Text style={[styles.sectionTitle, { marginTop: SPACING.xl }]}>MÔ PHỎNG MÀN HÌNH KHÓA</Text>
-      <Pressable style={styles.btnSimulate} onPress={onTriggerLockScreen}>
-        <Text style={styles.btnSimulateText}>🔒 Mở mô phỏng màn hình khóa</Text>
-      </Pressable>
-      <Text style={styles.helpText}>
-        Mô phỏng màn hình khóa hiển thị flashcard Key-Value khi mở điện thoại.
-      </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Nhập từ vựng từ file Excel"
+          style={({ pressed }) => [
+            styles.actionButton,
+            styles.btnImport,
+            importing && styles.btnDisabled,
+            pressed && styles.btnPressed,
+          ]}
+          onPress={importFromExcel}
+          disabled={importing}
+        >
+          {importing ? (
+            <ActivityIndicator color={COLORS.text} />
+          ) : (
+            <>
+              <Icon name="upload" size={18} color={COLORS.text} />
+              <Text style={styles.btnImportText}>Chọn file Excel (.xlsx)</Text>
+            </>
+          )}
+        </Pressable>
 
-      <Text style={[styles.sectionTitle, { marginTop: SPACING.xl }]}>QUẢN LÝ DỮ LIỆU</Text>
-      <Pressable style={styles.btnReset} onPress={resetProgress}>
-        <Text style={styles.btnResetText}>Đặt lại tiến độ học</Text>
-      </Pressable>
-      <Text style={styles.helpText}>
-        Đánh dấu tất cả cặp Key-Value về trạng thái "Đang học" và đặt lại số lượt ôn.
-      </Text>
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            💡 Mẫu file: Cột A là Key (từ vựng/khái niệm), Cột B là Value (nghĩa/giải thích).
+          </Text>
+        </View>
+      </View>
+
+      {/* Section 2: Lock Screen Simulator */}
+      <View style={styles.cardSection}>
+        <View style={styles.sectionHeader}>
+          <Icon name="lock" size={16} color={COLORS.accent} />
+          <Text style={styles.sectionTitle}>MÔ PHỎNG MÀN HÌNH KHÓA</Text>
+        </View>
+        <Text style={styles.sectionDesc}>
+          Trải nghiệm tính năng ôn tập từ vựng ngay khi mở màn hình điện thoại.
+        </Text>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Mở màn hình mô phỏng khóa"
+          style={({ pressed }) => [
+            styles.actionButton,
+            styles.btnSimulate,
+            pressed && styles.btnPressed,
+          ]}
+          onPress={onTriggerLockScreen}
+        >
+          <Icon name="lock" size={18} color={COLORS.text} />
+          <Text style={styles.btnSimulateText}>Bật mô phỏng màn hình khóa</Text>
+        </Pressable>
+      </View>
+
+      {/* Section 3: Data Management */}
+      <View style={styles.cardSection}>
+        <View style={styles.sectionHeader}>
+          <Icon name="refresh" size={16} color={COLORS.errorLight} />
+          <Text style={[styles.sectionTitle, { color: COLORS.errorLight }]}>
+            QUẢN LÝ TIẾN ĐỘ
+          </Text>
+        </View>
+        <Text style={styles.sectionDesc}>
+          Đặt lại toàn bộ từ vựng đã nhớ về trạng thái "Đang học" để bắt đầu chu kỳ ôn tập mới.
+        </Text>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Đặt lại tiến độ học"
+          style={({ pressed }) => [
+            styles.actionButton,
+            styles.btnReset,
+            resetting && styles.btnDisabled,
+            pressed && styles.btnPressed,
+          ]}
+          onPress={resetProgress}
+          disabled={resetting}
+        >
+          {resetting ? (
+            <ActivityIndicator color={COLORS.errorLight} />
+          ) : (
+            <>
+              <Icon name="refresh" size={18} color={COLORS.errorLight} />
+              <Text style={styles.btnResetText}>Đặt lại toàn bộ tiến độ học</Text>
+            </>
+          )}
+        </Pressable>
+      </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    padding: SPACING.md,
+    paddingBottom: (Platform.OS === 'web'
+      ? 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
+      : 80) as any,
+    gap: SPACING.md,
+  },
+  cardSection: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADII.xl,
     padding: SPACING.lg,
-    paddingBottom: SPACING.xl * 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: SPACING.xs,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: TYPOGRAPHY.xs,
+    fontWeight: '800',
     color: COLORS.accent,
     letterSpacing: 1.5,
+  },
+  sectionDesc: {
+    fontSize: TYPOGRAPHY.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
     marginBottom: SPACING.md,
+  },
+  actionButton: {
+    minHeight: TOUCH_TARGET.cta,
+    borderRadius: RADII.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.md,
   },
   btnImport: {
     backgroundColor: COLORS.success,
-    paddingVertical: SPACING.md,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-    minHeight: 48,
-    justifyContent: 'center',
+    shadowColor: COLORS.success,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   btnImportText: {
     color: COLORS.text,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  btnDisabled: {
-    opacity: 0.7,
+    fontSize: TYPOGRAPHY.base,
+    fontWeight: '700',
   },
   btnSimulate: {
     backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.md,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   btnSimulateText: {
     color: COLORS.text,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: TYPOGRAPHY.base,
+    fontWeight: '700',
   },
   btnReset: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(244, 63, 94, 0.08)',
     borderWidth: 1.5,
-    borderColor: COLORS.error,
-    paddingVertical: SPACING.md,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
+    borderColor: 'rgba(244, 63, 94, 0.4)',
   },
   btnResetText: {
-    color: COLORS.error,
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: COLORS.errorLight,
+    fontSize: TYPOGRAPHY.base,
+    fontWeight: '700',
   },
-  helpText: {
-    fontSize: 12,
+  btnPressed: {
+    transform: [{ scale: 0.985 }],
+    opacity: 0.9,
+  },
+  btnDisabled: {
+    opacity: 0.6,
+  },
+  infoBox: {
+    marginTop: SPACING.md,
+    padding: SPACING.sm,
+    backgroundColor: 'rgba(51, 65, 85, 0.4)',
+    borderRadius: RADII.md,
+  },
+  infoText: {
+    fontSize: TYPOGRAPHY.xs,
     color: COLORS.textSecondary,
     lineHeight: 18,
-    paddingHorizontal: 4,
   },
 });
